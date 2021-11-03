@@ -7,6 +7,7 @@
 #include <costmap_2d/costmap_2d.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <tf2_ros/buffer.h>
+#include <tf/tf.h>
 
 #include <angles/angles.h>
 //#include <boost/shared_ptr.hpp>
@@ -48,10 +49,7 @@ namespace dummy_local_planner {
       bool computeVelocityCommands(geometry_msgs::Twist& cmd_vel);
 
     private:
-/*      inline double sign(double x){
-        return x < 0.0 ? -1.0 : 1.0;
-      }
-*/
+
       /**
        * @brief  Callback for receiving odometry data
        * @param msg An Odometry message 
@@ -62,11 +60,6 @@ namespace dummy_local_planner {
       /**
        * @brief Compute the square distance between two poses
        */
-/*      inline double squareDist(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2){
-        return (p1.pose.position.x - p2.pose.position.x) * (p1.pose.position.x - p2.pose.position.x)
-          + (p1.pose.position.y - p2.pose.position.y) * (p1.pose.position.y - p2.pose.position.y);
-      }
-*/
 
       costmap_2d::Costmap2DROS* costmap_ros_;
       tf2_ros::Buffer* tf_;

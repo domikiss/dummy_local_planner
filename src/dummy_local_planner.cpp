@@ -22,9 +22,6 @@ namespace dummy_local_planner {
 
       costmap_ros_ = costmap_ros;
 
-      ros::NodeHandle pn("~/" + name);
-
-
       //to get odometry information, we need to get a handle to the topic in the global namespace
       ros::NodeHandle gn;
       odom_sub_ = gn.subscribe<nav_msgs::Odometry>("odom", 1, boost::bind(&DummyLocalPlanner::odomCallback, this, _1));
@@ -59,16 +56,20 @@ namespace dummy_local_planner {
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
-/*
-    tf::Stamped<tf::Pose> global_pose;
-    if(!costmap_ros_->getRobotPose(global_pose))
-      return false;
 
-    costmap_2d::Costmap2D costmap;
-    costmap_ros_->getCostmapCopy(costmap);
+    geometry_msgs::PoseStamped global_pose;
+    if(!costmap_ros_->getRobotPose(global_pose)){
+      ROS_ERROR("Could not get robot pose");
+      return false;
+    }
+
+    costmap_2d::Costmap2D* costmap;
+    costmap = costmap_ros_->getCostmap();
     std::vector<geometry_msgs::PoseStamped> transformed_plan;
-    //get the global plan in our frame
-    if(!base_local_planner::transformGlobalPlan(*tf_, global_plan_, *costmap_ros_, costmap_ros_->getGlobalFrameID(), transformed_plan)){
+
+    // Transform the global plan of the robot from the planner frame to the frame of the costmap, 
+    // select only the (first) part of the plan that is within the costmap area.
+    if(!base_local_planner::transformGlobalPlan(*tf_, global_plan_, global_pose, *costmap, costmap_ros_->getGlobalFrameID(), transformed_plan)){
       ROS_WARN("Could not transform the global plan to the frame of the controller");
       return false;
     }
@@ -78,14 +79,13 @@ namespace dummy_local_planner {
       base_local_planner::prunePlan(global_pose, transformed_plan, global_plan_);
 
 
-    //we also want to clear the robot footprint from the costmap we're using
-    costmap_ros_->clearRobotFootprint();
-
-
     //if the global plan passed in is empty... we won't do anything
-    if(transformed_plan.empty())
+    if(transformed_plan.empty()) {
+      ROS_WARN("The transformed plan is empty");
       return false;
-
+    }
+    ROS_DEBUG_NAMED("dummy_local_planner", "Received a transformed plan with %zu points.", transformed_plan.size());
+  
 
     tf::Stamped<tf::Pose> goal_point;
     tf::poseStampedMsgToTF(transformed_plan.back(), goal_point);
@@ -93,12 +93,11 @@ namespace dummy_local_planner {
     double goal_x = goal_point.getOrigin().getX();
     double goal_y = goal_point.getOrigin().getY();
 
-    double yaw = tf::getYaw(goal_point.getRotation());
-
-    double goal_th = yaw;
+    // double yaw = tf::getYaw(goal_point.getRotation());
+    // double goal_th = yaw;
 
     //check to see if we've reached the goal position
-    if(base_local_planner::goalPositionReached(global_pose, goal_x, goal_y, xy_goal_tolerance_) || xy_tolerance_latch_){
+    if(base_local_planner::getGoalPositionDistance(global_pose, goal_x, goal_y) <= xy_goal_tolerance_){
 
       cmd_vel.linear.x = 0.0;
       cmd_vel.linear.y = 0.0;
@@ -107,10 +106,6 @@ namespace dummy_local_planner {
       return true;
     }
 
-    ROS_DEBUG_NAMED("dummy_local_planner", "Received a transformed plan with %zu points.", transformed_plan.size());
-    dp_->updatePlan(transformed_plan);
-
-*/
 
     //pass along some dummy drive commands
     cmd_vel.linear.x = 0.2;
@@ -132,7 +127,13 @@ namespace dummy_local_planner {
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
-/*
+
+    geometry_msgs::PoseStamped global_pose;
+    if(!costmap_ros_->getRobotPose(global_pose)){
+      ROS_ERROR("Could not get robot pose");
+      return false;
+    }
+
     //copy over the odometry information
     nav_msgs::Odometry base_odom;
     {
@@ -140,11 +141,9 @@ namespace dummy_local_planner {
       base_odom = base_odom_;
     }
 
-    return base_local_planner::isGoalReached(*tf_, global_plan_, *costmap_ros_, costmap_ros_->getGlobalFrameID(), base_odom, 
+    return base_local_planner::isGoalReached(*tf_, global_plan_, *(costmap_ros_->getCostmap()), costmap_ros_->getGlobalFrameID(), global_pose, base_odom, 
         rot_stopped_vel_, trans_stopped_vel_, xy_goal_tolerance_, yaw_goal_tolerance_);
-        */
-
-    return false;
+    
   }
 
 
